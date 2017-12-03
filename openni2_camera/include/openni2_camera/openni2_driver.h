@@ -186,6 +186,7 @@ private:
   bool projector_info_subscribers_;
 
   bool use_device_time_;
+  double latency_offset_;
 
   Config old_config_;
 };

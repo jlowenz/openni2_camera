@@ -43,35 +43,42 @@
 namespace openni2_wrapper
 {
 
-class OpenNI2TimerFilter;
+  class OpenNI2TimerFilter;
 
-class OpenNI2FrameListener : public openni::VideoStream::NewFrameListener
-{
-public:
-  OpenNI2FrameListener();
+  /** Thread-safe, bounded storage for synchronizing ros time across frame captures **/
 
-  virtual ~OpenNI2FrameListener()
-  { };
-
-  void onNewFrame(openni::VideoStream& stream);
-
-  void setCallback(FrameCallbackFunction& callback)
+  bool get_or_push_ts(uint64_t dev_ts, ros::Time& ros_ts);
+  
+  class OpenNI2FrameListener : public openni::VideoStream::NewFrameListener
   {
-    callback_ = callback;
-  }
+  public:
+    OpenNI2FrameListener(bool color_depth_synchronization = false,
+                         double latency_offset = 0.0);
 
-  void setUseDeviceTimer(bool enable);
+    virtual ~OpenNI2FrameListener()
+    { };
 
-private:
-  openni::VideoFrameRef m_frame;
+    void onNewFrame(openni::VideoStream& stream);
 
-  FrameCallbackFunction callback_;
+    void setCallback(FrameCallbackFunction& callback)
+    {
+      callback_ = callback;
+    }
 
-  bool user_device_timer_;
-  boost::shared_ptr<OpenNI2TimerFilter> timer_filter_;
+    void setUseDeviceTimer(bool enable);
 
-  double prev_time_stamp_;
-};
+  private:
+    openni::VideoFrameRef m_frame;
+    bool color_depth_synchronization_;
+    double latency_offset_;
+
+    FrameCallbackFunction callback_;
+
+    bool user_device_timer_;
+    boost::shared_ptr<OpenNI2TimerFilter> timer_filter_;
+
+    double prev_time_stamp_;
+  };
 
 }
 

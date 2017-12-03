@@ -714,6 +714,8 @@ void OpenNI2Driver::readConfigFromParameterServer()
 
   pnh_.param("enable_reconnect", enable_reconnect_, true);
 
+  pnh_.param("latency_offset", latency_offset_, 0.0);
+
 }
 
 std::string OpenNI2Driver::resolveDeviceURI(const std::string& device_id) throw(OpenNI2Exception)
@@ -839,6 +841,7 @@ void OpenNI2Driver::initDevice()
       std::string device_URI = resolveDeviceURI(device_id_);
       device_ = device_manager_->getDevice(device_URI);
       bus_id_ = extractBusID(device_->getUri() );
+      device_->setStreamLatencyOffset(latency_offset_);
     }
     catch (const OpenNI2Exception& exception)
     {

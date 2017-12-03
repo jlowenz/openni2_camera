@@ -36,17 +36,59 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <ros/ros.h>
+#include <thread>
+#include <mutex>
 
 #define TIME_FILTER_LENGTH 15
+
+const int MAX_TIMESTAMPS = 5;
 
 namespace openni2_wrapper
 {
 
-OpenNI2FrameListener::OpenNI2FrameListener() :
-    callback_(0),
-    user_device_timer_(false),
-    timer_filter_(new OpenNI2TimerFilter(TIME_FILTER_LENGTH)),
-    prev_time_stamp_(0.0)
+  struct ts_sync_t
+  {
+    uint64_t device;
+    ros::Time ros;
+  };  
+
+  template<int N>
+  int pos_modulo(int i) {
+    return (i % N + N) % N;
+  }
+  
+  bool get_or_push_ts(uint64_t dev_ts, ros::Time& ros_ts)
+  {
+    static std::vector<ts_sync_t> stamps_(MAX_TIMESTAMPS, ts_sync_t{0,ros::Time::now()});
+    static std::mutex mut_;
+    static int last = MAX_TIMESTAMPS-1;
+    // since we are NEVER explicitly removing, we only need the last element position;
+    std::lock_guard<std::mutex> lock(mut_);
+    // if the stamp exists, return it
+    int curr = last;
+    do {
+      if (stamps_[curr].device == dev_ts) {
+        ros_ts = stamps_[curr].ros;
+        return true; // found it
+      }
+      curr = pos_modulo<MAX_TIMESTAMPS>(curr-1);
+    } while (curr != last);
+    // didn't find it
+    last = pos_modulo<MAX_TIMESTAMPS>(last+1); // increment the position
+    stamps_[last].device = dev_ts;
+    stamps_[last].ros = ros_ts;
+    return false;
+  }
+
+  
+OpenNI2FrameListener::OpenNI2FrameListener(bool color_depth_synchronization,
+                                           double latency_offset) :
+  color_depth_synchronization_(color_depth_synchronization),
+  latency_offset_(latency_offset),
+  callback_(0),
+  user_device_timer_(false),
+  timer_filter_(new OpenNI2TimerFilter(TIME_FILTER_LENGTH)),
+  prev_time_stamp_(0.0)
 {
   ros::Time::init();
 }
@@ -58,16 +100,21 @@ void OpenNI2FrameListener::setUseDeviceTimer(bool enable)
   if (user_device_timer_)
     timer_filter_->clear();
 }
-
+ 
 void OpenNI2FrameListener::onNewFrame(openni::VideoStream& stream)
 {
   stream.readFrame(&m_frame);
-
+  uint64_t ts = m_frame.getTimestamp();
   if (m_frame.isValid() && callback_)
   {
     sensor_msgs::ImagePtr image(new sensor_msgs::Image);
 
-    ros::Time ros_now = ros::Time::now();
+    ros::Time ros_now = ros::Time::now() - ros::Duration(latency_offset_);
+    if (color_depth_synchronization_) {
+      if (get_or_push_ts(ts, ros_now)) { // atomic
+        ROS_DEBUG("Using known timestamp");
+      }
+    }
 
     if (!user_device_timer_)
     {

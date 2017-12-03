@@ -77,10 +77,12 @@ OpenNI2Device::OpenNI2Device(const std::string& device_URI) throw (OpenNI2Except
   device_info_ = boost::make_shared<openni::DeviceInfo>();
   *device_info_ = openni_device_->getDeviceInfo();
 
-  ir_frame_listener = boost::make_shared<OpenNI2FrameListener>();
-  color_frame_listener = boost::make_shared<OpenNI2FrameListener>();
-  depth_frame_listener = boost::make_shared<OpenNI2FrameListener>();
-
+  ir_frame_listener =
+    boost::make_shared<OpenNI2FrameListener>(color_depth_synchronization_);
+  color_frame_listener =
+    boost::make_shared<OpenNI2FrameListener>(color_depth_synchronization_);
+  depth_frame_listener =
+    boost::make_shared<OpenNI2FrameListener>(color_depth_synchronization_);
 }
 
 OpenNI2Device::~OpenNI2Device()
@@ -437,6 +439,7 @@ void OpenNI2Device::setImageRegistrationMode(bool enabled) throw (OpenNI2Excepti
 
 void OpenNI2Device::setDepthColorSync(bool enabled) throw (OpenNI2Exception)
 {
+  color_depth_synchronization_ = enabled;
   openni::Status rc = openni_device_->setDepthColorSyncEnabled(enabled);
   if (rc != openni::STATUS_OK)
     THROW_OPENNI_EXCEPTION("Enabling depth color synchronization failed: \n%s\n", openni::OpenNI::getExtendedError());
@@ -583,6 +586,12 @@ void OpenNI2Device::setExposure(int exposure) throw (OpenNI2Exception)
     }
   }
 }
+
+void OpenNI2Device::setStreamLatencyOffset(double latency)
+{
+  latency_ = latency;
+}
+
 
 bool OpenNI2Device::getAutoExposure() const
 {

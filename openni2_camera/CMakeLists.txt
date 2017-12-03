@@ -32,6 +32,8 @@ include_directories(include
 
 link_directories(${PC_OPENNI2_LIBRARY_DIRS})
 
+set(CMAKE_CXX_STANDARD 14)
+
 add_library(openni2_wrapper
    src/openni2_convert.cpp
    src/openni2_device.cpp 

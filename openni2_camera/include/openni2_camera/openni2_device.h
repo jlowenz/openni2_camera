@@ -127,6 +127,7 @@ public:
   void setAutoExposure(bool enable) throw (OpenNI2Exception);
   void setAutoWhiteBalance(bool enable) throw (OpenNI2Exception);
   void setExposure(int exposure) throw (OpenNI2Exception);
+  void setStreamLatencyOffset(double latency);
 
   bool getAutoExposure() const;
   bool getAutoWhiteBalance() const;
@@ -161,8 +162,10 @@ protected:
   bool depth_video_started_;
 
   bool image_registration_activated_;
+  bool color_depth_synchronization_;
 
   bool use_device_time_;
+  double latency_;
 
 };
 
